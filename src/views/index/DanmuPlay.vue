@@ -62,8 +62,8 @@ import posterImg from '../../assets/image/play.png'
 import { cookieUtil, COOKIE_KEY_MAP } from '../../utils/cookie'
 import { fmt } from "../../utils/format";
 // 弹幕相关依赖
-import { new_danmu_player } from '@/danmu/player/player'
-import { init_player } from '@/danmu/player/danmu'
+import { init_player } from '@/danmu/player/player'
+import { init_danmu_player } from '@/danmu/player/danmu'
 
 const data = reactive({
   loading: false,
@@ -170,8 +170,8 @@ async function reRenderPlayer() {
   const episode = data.current.index + 1
   // 获取播放信息
   // 重新渲染播放器
-  let art = new_danmu_player(url, '.artplayer-app', data)
-  init_player(art)
+  let art = init_player(url, '.artplayer-app', data)
+  init_danmu_player(art)
 }
 
 watch(() => data.options.src, (newVal) => {

@@ -1,7 +1,5 @@
 import artplayerPluginDanmuku from 'artplayer-plugin-danmuku';
-import {bilibiliDanmuParseFromJson} from "@/danmu/player/player.js";
-import {get_comment, get_episodeId, get_search_episodes} from '@/danmu/api/api'
-import {db_info} from "@/danmu/db/db.js";
+import {SEARCHED, UNSEARCHED} from "@/danmu/player/search.js";
 
 const html_danmu = `<div id="k-player-danmaku-search-form">
                 <label>
@@ -96,7 +94,7 @@ async function down_danmu(art) {
     saveAs(blob, `${title} - ${episode}.json`);
 }
 
-function add_danmu(art) {
+function init_danmu(art) {
     let plug = artplayerPluginDanmuku({
         danmuku: [],
         speed: 5, // 弹幕持续时间，单位秒，范围在[1 ~ 10]
@@ -138,6 +136,26 @@ function add_danmu(art) {
         // console.info('配置变化', option);
     });
 
+    let $danmu_count = document.querySelector("#danmu_count")
+    // 监听加载到的弹幕数组
+    art.on('artplayerPluginDanmuku:loaded', (danmus) => {
+        console.info('加载弹幕', danmus.length);
+        $danmu_count.textContent = danmus.length
+        if ($danmu_count.textContent === '') {
+            art_msgs(art, UNSEARCHED)
+        } else {
+            art_msgs(art, SEARCHED())
+        }
+    });
+
+    art.on('pause', () => {
+        if ($danmu_count.textContent === '') {
+            art_msgs(art, UNSEARCHED)
+        } else {
+            art_msgs(art, SEARCHED())
+        }
+    });
+
     // // 监听弹幕停止
     // art.on('artplayerPluginDanmuku:stop', () => {
     //     console.info('弹幕停止');
@@ -164,339 +182,80 @@ function add_danmu(art) {
     // });
 }
 
-let UNSEARCHED = ['未搜索到番剧弹幕', '请按右键菜单', '手动搜索番剧名称',]
 
 
-function init_player(art) {
-    add_danmu(art)
-
-    let $danmu_count = document.querySelector("#danmu_count")
-
-    let $anime_list = document.querySelector("#anime_list")
-    let $episode_list = document.querySelector("#episode_list")
-
-
-    let SEARCHED = () => {
-        try {
-            return [`番剧：${$anime_list.options[$anime_list.selectedIndex].text}`, `章节: ${$episode_list.options[$episode_list.selectedIndex].text}`, `已加载 ${$danmu_count.textContent} 条弹幕`,]
-        } catch (e) {
-            console.log(e)
-            return []
-        }
+function getMode(key) {
+    switch (key) {
+        case 1:
+        case 2:
+        case 3:
+            return 0;
+        case 4:
+        case 5:
+            return 1;
+        default:
+            return 0;
     }
+}
 
-    async function update_episode_select(art) {
-        // 章节
-        let {
-            anime_id,
-            title,
+// 将 danmu xml 字符串转为 bilibili 格式
+function bilibiliDanmuParseFromXml(xmlString) {
+    if (typeof xmlString !== 'string') return [];
+    const matches = xmlString.matchAll(/<d (?:.*? )??p="(?<p>.+?)"(?: .*?)?>(?<text>.+?)<\/d>/gs);
+    return Array.from(matches)
+        .map((match) => {
+            const attr = match.groups.p.split(',');
+            if (attr.length >= 8) {
+                const text = match.groups.text
+                    .trim()
+                    .replaceAll('&quot;', '"')
+                    .replaceAll('&apos;', "'")
+                    .replaceAll('&lt;', '<')
+                    .replaceAll('&gt;', '>')
+                    .replaceAll('&amp;', '&');
 
-            url,
-            episode,
-        } = art.storage.get('info')
-
-        let $episodes = document.querySelector("#episode_list")
-
-        const episode_idx = $episodes.selectedIndex
-        console.log('update_episode_select: ', episode_idx)
-        let db_anime_info = await db_info.get(anime_id)
-        // let db_anime_info = art.storage.get('db_info')
-        const {episode_dif} = db_anime_info
-        // 存储选择的剧集序号
-        let dif = episode_idx + 1 - episode
-        if (dif !== episode_dif) {
-            db_anime_info['episode_dif'] = dif
-            await db_info.put(anime_id, db_anime_info)
-            // 更新选择的剧集
-            // const event = new Event('db_info_put');
-            // event.key = anime_id;
-            // event.value = db_anime_info;
-            // document.dispatchEvent(event);
-            //
-            // let db_info = art.storage.get('db_info')
-            // let {animes: old_animes} = db_info
-            // let {animes: new_animes, idx: new_idx} = e.value
-            // if (new_animes !== old_animes) {
-            //     // 初始番剧选项与默认选择
-            //     db_info.animes = new_animes
-            //     db_info.idx = new_idx
-            //     art.storage.set('db_info', db_info)
-            // }
-        }
-
-        // 获取选中的值
-        const episodeId = $episodes.value;
-        // 在控制台打印选中的值
-        let danmu
-        try {
-            // 优先使用接口数据
-            danmu = await get_comment(episodeId)
-            art.storage.set(episodeId, danmu)
-        } catch (error) {
-            console.log('接口请求失败，尝试使用缓存数据: ', error)
-            danmu = art.storage.get(episodeId)
-            if (!danmu) {
-                throw new Error('无法获取弹幕数据')
+                return {
+                    text,
+                    time: Number(attr[0]),
+                    mode: getMode(Number(attr[1])),
+                    fontSize: Number(attr[2]),
+                    color: `#${Number(attr[3]).toString(16)}`,
+                    timestamp: Number(attr[4]),
+                    pool: Number(attr[5]),
+                    userID: attr[6],
+                    rowID: Number(attr[7]),
+                };
+            } else {
+                return null;
             }
-        }
-        update_danmu(art, danmu)
-    }
-
-
-// 更新 episode select
-// 初始剧集选项与默认选择
-    async function update_episode_list(art, anime) {
-        console.log('update_episode_list: ', anime)
-
-        let {
-            anime_id,
-            title,
-
-            url,
-            episode,
-        } = art.storage.get('info')
-        // 章节
-        let $episodes = document.querySelector("#episode_list")
-
-        const {animeId, episodes} = anime
-        const html = episodes.reduce((html, episode) => html + `<option value="${episode.episodeId}">${episode.episodeTitle}</option>`, '')
-        $episodes.innerHTML = html
-
-        let db_anime_info = await db_info.get(anime_id)
-        // let db_anime_info = art.storage.get('db_info')
-        const {episode_dif} = db_anime_info
-
-        let episodeId = get_episodeId(animeId, episode_dif + episode)
-
-        $episodes.value = episodeId
-
-        const event = new CustomEvent('update_episode_select', {
-            detail: {
-                art,
-            },
-        });
-        document.dispatchEvent(event);
-    }
-
-    // 监听加载到的弹幕数组
-    art.on('artplayerPluginDanmuku:loaded', (danmus) => {
-        console.info('加载弹幕', danmus.length);
-        $danmu_count.textContent = danmus.length
-        if ($danmu_count.textContent === '') {
-            art_msgs(art, UNSEARCHED)
-        } else {
-            art_msgs(art, SEARCHED())
-        }
-    });
-
-    art.on('pause', () => {
-        if ($danmu_count.textContent === '') {
-            art_msgs(art, UNSEARCHED)
-        } else {
-            art_msgs(art, SEARCHED())
-        }
-    });
-
-
-
-    $anime_list.addEventListener('change', async () => {
-        // let db_anime_info = art.storage.get('db_info')
-        let {
-            anime_id,
-            title,
-
-            url,
-            episode,
-        } = art.storage.get('info')
-        let db_anime_info = await db_info.get(anime_id)
-        // 获取选中的值
-        const new_idx = $anime_list.selectedIndex
-        const {anime_idx, animes} = db_anime_info
-        // 存储选择的番剧序号
-        if (new_idx !== anime_idx) {
-            db_anime_info['anime_idx'] = new_idx
-            // 更新选择的剧集
-            // art.storage.set('db_info', db_anime_info)
-            await db_info.put(anime_id, db_anime_info)
-            await set_anime_name(art)
-
-            // 番剧选项变化
-            await update_episode_list(art, animes[new_idx])
-
-            // $animeName.value = anime_info['animes'][anime_info['idx']]['animeTitle']
-        }
-    });
-
-    // 监听input元素的keypress事件
-    $episode_list.addEventListener('change', async function (e) {
-        await update_episode_select(art)
-    });
-
-    // document.addEventListener('db_info_put', async function (e) {
-    //     let {
-    //         anime_id,
-    //         title,
-    //
-    //         url,
-    //         episode,
-    //     } = art.storage.get('info')
-    //     let db_anime_info = await db_info.get(anime_id)
-    //     let {animes: old_animes} = db_anime_info
-    //     // let db_info = art.storage.get('db_info')
-    //     // let {animes: old_animes} = db_info
-    //     let {animes: new_animes, idx: new_idx} = e.value
-    //     if (new_animes !== old_animes) {
-    //         // 初始番剧选项与默认选择
-    //         db_anime_info.animes = new_animes
-    //         db_anime_info.idx = new_idx
-    //         // art.storage.set('db_info', db_anime_info)
-    //         await db_info.put(anime_id, db_anime_info)
-    //         update_animes_list(art, new_animes, new_idx)
-    //     }
-    // });
-
-    document.addEventListener('update_episode_list', async function (e) {
-        let {art, anime} = e.detail
-        await update_episode_list(art, anime)
-    });
-
-    document.addEventListener('update_episode_select', async function (e) {
-        let {art} = e.detail
-        await update_episode_select(art)
-    });
-
-    let $animeName = document.querySelector("#anime_name")
-// 监听input元素的keypress事件
-    $animeName.addEventListener('keypress', async (e) => {
-        if (e.key === 'Enter') {
-            await update_anime_list_req($animeName.value, art)
-        }
-    });
-// 监听input元素的blur事件
-    $animeName.addEventListener('blur', async () => {
-        await update_anime_list_req($animeName.value, art)
-    });
-
-    return {
-        $animeName,
-        $count: $danmu_count,
-        $animes: $anime_list,
-        $episodes: $episode_list,
-    }
+        })
+        .filter(Boolean);
 }
 
-async function set_anime_name(art) {
-
-    let {
-        anime_id,
-        title,
-
-        url,
-        episode,
-    } = art.storage.get('info')
-
-    let db_anime_info = await db_info.get(anime_id)
-    console.log(db_anime_info)
-    let {animes, anime_idx} = db_anime_info
-    let animeTitle = animes[anime_idx].animeTitle
-    let $animeName = document.querySelector("#anime_name")
-    // 初始搜索番剧默认名称
-    console.log('set_anime_name: ', animeTitle, title)
-    if (animeTitle) {
-        $animeName.value = animeTitle
-    } else {
-        $animeName.value = title
-    }
-}
-
-
-// 请求接口，搜索番剧
-async function update_anime_list_req(animeTitle, art) {
-    let {
-        anime_id,
-        title,
-
-        url,
-        episode,
-    } = art.storage.get('info')
-
-    let db_anime_info = await db_info.get(anime_id)
-    // let db_anime_info = art.storage.get('db_info')
-    try {
-        const animes = await get_search_episodes(animeTitle)
-        if (animes.length === 0) {
-            art_msgs(art, UNSEARCHED)
-        } else {
-            db_anime_info['animes'] = animes
-            await db_info.put(anime_id, db_anime_info)
-            // art.storage.set('db_info', db_anime_info)
-            await set_anime_name(art)
-
-            update_anime_list_dom(art, animes, db_anime_info.anime_idx)
+// 将 danmu json 转为 bilibili 格式
+function bilibiliDanmuParseFromJson(jsonString) {
+    return jsonString.map((comment) => {
+        let attr = comment.p.split(',');
+        return {
+            text: comment.m,
+            time: Number(attr[0]),
+            mode: getMode(Number(attr[1])),
+            fontSize: Number(25),
+            color: `#${Number(attr[2]).toString(16)}`,
+            timestamp: Number(comment.cid),
+            pool: Number(0),
+            userID: attr[3],
+            rowID: Number(0),
         }
-        return animes
-    } catch (error) {
-        console.log('弹幕服务异常，稍后再试: ', error)
-    }
-}
-
-// 初始番剧选项与默认选择
-function update_anime_list_dom(art, animes, anime_idx) {
-    console.log('update_anime_list: ', animes, anime_idx)
-    // 番剧名称列表
-    let $anime_list = document.querySelector("#anime_list")
-
-    const html = animes.reduce((html, anime) => html + `<option value="${anime.animeId}">${anime.animeTitle}</option>`, '')
-    $anime_list.innerHTML = html
-
-    let anime = animes[anime_idx]
-    $anime_list.value = anime['animeId']
-
-    // const event = new Event('update_episodes')
-    // event.value = animes[idx]
-    // console.log(animes[idx])
-
-    const event = new CustomEvent('update_episode_list', {
-        detail: {
-            art,
-            anime,
-        },
-    });
-    document.dispatchEvent(event);
-}
-
-async function get_anime_list(art) {
-    let {
-        anime_id,
-        title,
-
-        url,
-        episode,
-    } = art.storage.get('info')
-
-    let db_anime_info = await db_info.get(anime_id)
-    // let db_anime_info = art.storage.get('db_info')
-
-    let {animes, anime_idx} = db_anime_info
-    let anime = animes[anime_idx]
-    const {animeTitle} = anime
-    if (!anime.hasOwnProperty('animeId')) {
-        console.log('没有缓存，请求接口')
-        await update_anime_list_req(animeTitle, art)
-    } else {
-        console.log('有缓存，请求弹幕')
-        update_anime_list_dom(art, animes, anime_idx)
-    }
+    })
 }
 
 
 export {
     update_danmu,
-    add_danmu,
-    init_player,
+    init_danmu,
     html_danmu,
-    get_anime_list,
-    set_anime_name,
     upload_danmu,
     down_danmu,
+    art_msgs,
 }

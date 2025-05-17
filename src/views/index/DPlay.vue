@@ -65,8 +65,8 @@ import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 
 // 弹幕相关依赖
-import { new_danmu_player } from '@/danmu/player/player'
-import {init_player, get_anime_list, set_anime_name} from '@/danmu/player/danmu'
+import { init_player } from '@/danmu/player/player'
+import {init_danmu_player, get_anime_list, set_anime_name} from '@/danmu/player/search'
 import {db_info} from "@/danmu/db/db";
 
 const artContainer = ref(null);
@@ -169,42 +169,11 @@ const playNext = () => {
   }
 }
 
-function playM3u8(video: HTMLVideoElement, url: string, art: any) {
-  if (Hls.isSupported()) {
-    if (art.hls) art.hls.destroy();
-    const hls = new Hls();
-    hls.loadSource(url);
-    hls.attachMedia(video);
-    art.hls = hls;
-    art.on('destroy', () => hls.destroy());
-  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = url;
-  } else {
-    art.notice.show = 'Unsupported playback format: m3u8';
-  }
-}
-
 onMounted(()=>{
   initArtPlayer();
 })
 
 async function initArtPlayer() {
-  // if (artInstance) {
-  //   artInstance.destroy();
-  //   artInstance = null;
-  // }
-
-  // artInstance = new Artplayer({
-  //   container: artContainer.value,
-  //   url: data.options.src,
-  //   type: 'm3u8',
-  //   volume: data.options.volume,
-  //   customType: {
-  //     m3u8: playM3u8,
-  //   },
-  //   autoplay: data.autoplay,
-  //   poster: posterImg,
-  // });
 
   const anime_id = data.detail.id
   const title = data.detail.name
@@ -213,20 +182,9 @@ async function initArtPlayer() {
   // 获取播放信息
 
   // 重新渲染播放器
-  art = new_danmu_player(url, artContainer.value, data)
+  art = init_player(url, artContainer.value, data)
 
-  // let { src_url, db_anime_info, db_anime_url } = await save_anime_info_db(anime_id, title, url)
-  // if (!art.storage.get(anime_id)) {
-  //   let db_anime_info = {
-  //     animes: [{ animeTitle: title }],
-  //     idx: 0,
-  //     episode_dif: 0,
-  //   }
-  //   art.storage.set(anime_id, db_anime_info)
-  // }
-  init_player(art)
-
-  // get_animes(artInstance, db_anime_info)
+  init_danmu_player(art)
 
   art.on('ready', () => {
     // 可扩展 ready 事件逻辑
@@ -267,7 +225,6 @@ async function updateArtPlayer() {
   await art.switchUrl(url)
   await set_anime_name(art)
   await get_anime_list(art)
-
 }
 
 // watch(() => data.options.src, (newVal) => {
