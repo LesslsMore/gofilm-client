@@ -42,6 +42,9 @@ importers:
         specifier: ^3.4.31
         version: 3.5.13(typescript@4.9.5)
     devDependencies:
+      '@tsconfig/node20':
+        specifier: ^20.1.5
+        version: 20.1.5
       '@types/node':
         specifier: ^22.15.17
         version: 22.15.17
@@ -425,6 +428,9 @@ packages:
 
   '@sxzz/popperjs-es@2.11.7':
     resolution: {integrity: sha512-Ccy0NlLkzr0Ex2FKvh2X+OyERHXJ88XJ1MXtsI9y9fGexlaXaVTPzBCRBwIxFkORuOb+uBqeu+RqnpgYTEZRUQ==}
+
+  '@tsconfig/node20@20.1.5':
+    resolution: {integrity: sha512-Vm8e3WxDTqMGPU4GATF9keQAIy1Drd7bPwlgzKJnZtoOsTm1tduUTbDjg0W5qERvGuxPI2h9RbMufH0YdfBylA==}
 
   '@types/estree@1.0.7':
     resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
@@ -1549,6 +1555,8 @@ snapshots:
       rollup: 3.29.5
 
   '@sxzz/popperjs-es@2.11.7': {}
+
+  '@tsconfig/node20@20.1.5': {}
 
   '@types/estree@1.0.7': {}
 

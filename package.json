@@ -23,6 +23,7 @@
     "vue": "^3.4.31"
   },
   "devDependencies": {
+    "@tsconfig/node20": "^20.1.5",
     "@types/node": "^22.15.17",
     "@vitejs/plugin-vue": "^4.1.0",
     "express": "^4.18.2",
