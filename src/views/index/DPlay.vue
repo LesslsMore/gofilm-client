@@ -65,9 +65,9 @@ import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 
 // 弹幕相关依赖
-import { save_anime_info_db } from '@/danmu/db/db_danmu'
 import { new_danmu_player } from '@/danmu/player/player'
-import {init_player, get_animes, set_anime_name} from '@/danmu/player/danmu'
+import {init_player, get_anime_list, set_anime_name} from '@/danmu/player/danmu'
+import {db_info} from "@/danmu/db/db";
 
 const artContainer = ref(null);
 let art: any = null;
@@ -216,14 +216,14 @@ async function initArtPlayer() {
   art = new_danmu_player(url, artContainer.value, data)
 
   // let { src_url, db_anime_info, db_anime_url } = await save_anime_info_db(anime_id, title, url)
-  if (!art.storage.get('db_info')) {
-    let db_anime_info = {
-      animes: [{ animeTitle: title }],
-      idx: 0,
-      episode_dif: 0,
-    }
-    art.storage.set('db_info', db_anime_info)
-  }
+  // if (!art.storage.get(anime_id)) {
+  //   let db_anime_info = {
+  //     animes: [{ animeTitle: title }],
+  //     idx: 0,
+  //     episode_dif: 0,
+  //   }
+  //   art.storage.set(anime_id, db_anime_info)
+  // }
   init_player(art)
 
   // get_animes(artInstance, db_anime_info)
@@ -244,28 +244,29 @@ async function updateArtPlayer() {
   let info = {
     anime_id,
     title,
+
     url,
     episode,
   }
   art.storage.set('info', info)
   console.log('info: ', info)
-  let db_info = art.storage.get('db_info')
-  console.log('db_info: ', db_info)
-  if (db_info) {
+  let db_anime_info = await db_info.get(anime_id)
+  if (db_anime_info) {
 
   } else {
-    let db_anime_info = {
+    db_anime_info = {
       animes: [{ animeTitle: title }],
-      idx: 0,
+      anime_idx: 0,
       episode_dif: 0,
     }
-    art.storage.set('db_info', db_anime_info)
+    await db_info.put(anime_id, db_anime_info)
   }
+  console.log('db_anime_info: ', db_anime_info)
   // let { src_url, db_anime_info, db_anime_url } = await save_anime_info_db(anime_id, title, url)
 
   await art.switchUrl(url)
-  set_anime_name(art)
-  await get_animes(art)
+  await set_anime_name(art)
+  await get_anime_list(art)
 
 }
 

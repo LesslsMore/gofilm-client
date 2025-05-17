@@ -62,7 +62,6 @@ import posterImg from '../../assets/image/play.png'
 import { cookieUtil, COOKIE_KEY_MAP } from '../../utils/cookie'
 import { fmt } from "../../utils/format";
 // 弹幕相关依赖
-import { save_anime_info_db } from '@/danmu/db/db_danmu'
 import { new_danmu_player } from '@/danmu/player/player'
 import { init_player } from '@/danmu/player/danmu'
 

@@ -1,7 +1,6 @@
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
-import saveAs from 'file-saver'
-import {html_danmu} from "@/danmu/player/danmu.js";
+import {down_danmu, html_danmu, upload_danmu} from "@/danmu/player/danmu.js";
 import posterImg from '@/assets/image/play.png'
 
 function playM3u8(video, url, art) {
@@ -21,16 +20,19 @@ function playM3u8(video, url, art) {
 
 // 加载 url danmu 播放器
 function new_danmu_player(url, container, data) {
-    var art = new Artplayer({
+    let art = new Artplayer({
         container,
         url,
+
         type: 'm3u8',
         customType: {
             m3u8: playM3u8,
-          },
+        },
+
         volume: data.options.volume,
         // autoplay: data.autoplay,
         poster: posterImg,
+
         // autoplay: true,
         // muted: true,
         autoSize: true,
@@ -45,67 +47,12 @@ function new_danmu_player(url, container, data) {
             {
                 position: 'right',
                 html: '上传',
-                click: function () {
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    // input.accept = "text/xml";
-                    input.accept = ".json, .xml"; // 支持上传 JSON 和 XML 文件
-                    input.addEventListener("change", () => {
-                        const file = input.files[0];
-                        if (!file) return;
-
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            const content = reader.result;
-
-                            // 根据文件后缀名区分处理逻辑
-                            if (file.name.endsWith(".json")) {
-                                // 解析 JSON 格式弹幕
-                                let json = JSON.parse(content)
-                                let comments
-                                if (json.length === 1) {
-                                    comments = json[0].comments;
-                                } else {
-                                    comments = json
-                                }
-                                const dm = bilibiliDanmuParseFromJson(comments);
-                                console.log("Parsed JSON danmaku:", dm);
-                                art.plugins.artplayerPluginDanmuku.config({
-                                    danmuku: dm,
-                                });
-                                art.plugins.artplayerPluginDanmuku.load();
-                            } else if (file.name.endsWith(".xml")) {
-                                // 解析 XML 格式弹幕
-                                const dm = bilibiliDanmuParseFromXml(content);
-                                console.log("Parsed XML danmaku:", dm);
-                                art.plugins.artplayerPluginDanmuku.config({
-                                    danmuku: dm,
-                                });
-                                art.plugins.artplayerPluginDanmuku.load();
-                            } else {
-                                console.error("Unsupported file format. Please upload a .json or .xml file.");
-                            }
-                        };
-                        reader.readAsText(file);
-                    });
-                    input.click();
-                },
+                click: () => upload_danmu(art),
             },
             {
                 position: 'right',
                 html: '下载',
-                click: async function () {
-                    let $episodes = document.querySelector("#episodes")
-                    const episodeId = $episodes.value
-                    // let {anime_id, episode, title, url} = info
-                    // // let danmu = await db_danmu.get(anime_id, episodeId)
-                    let info = art.storage.get('info')
-                    const {title, episode} = info
-                    let danmu = art.storage.get(episodeId)
-
-                    const blob = new Blob([JSON.stringify(danmu)], {type: "text/plain;charset=utf-8"});
-                    saveAs(blob, `${title} - ${episode}.json`);
-                },
+                click: () => down_danmu(art),
             },
         ],
         contextmenu: [

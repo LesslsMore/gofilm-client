@@ -1,27 +1,28 @@
 import artplayerPluginDanmuku from 'artplayer-plugin-danmuku';
 import {bilibiliDanmuParseFromJson} from "@/danmu/player/player.js";
 import {get_comment, get_episodeId, get_search_episodes} from '@/danmu/api/api'
-import {db_info, db_url} from "@/danmu/db/db.js";
+import {db_info} from "@/danmu/db/db.js";
 
 const html_danmu = `<div id="k-player-danmaku-search-form">
                 <label>
                   <span>搜索番剧名称</span>
-                  <input type="text" id="animeName" class="k-input" />
+                  <input type="text" id="anime_name" class="k-input" />
                 </label>
                 <div style="min-height:24px; padding-top:4px">
                   <span id="tips"></span>
                 </div>
                 <label>
                   <span>番剧名称</span>
-                  <select id="animes" class="k-select"></select>
+                  <select id="anime_list" class="k-select"></select>
                 </label>
                 <label>
                   <span>章节</span>
-                  <select id="episodes" class="k-select"></select>
+                  <select id="episode_list" class="k-select"></select>
                 </label>
                 <label>
                   <span class="open-danmaku-list">
-                    <span>弹幕列表</span><small id="count"></small>
+                    <span>弹幕列表</span>
+                    <small id="danmu_count"></small>
                   </span>
                 </label>
                 
@@ -38,6 +39,61 @@ function update_danmu(art, danmu) {
         danmuku: danmus,
     });
     art.plugins.artplayerPluginDanmuku.load();
+}
+
+// 加载 url danmu 播放器
+function upload_danmu(art) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json, .xml"; // 支持上传 JSON 和 XML 文件
+    input.addEventListener("change", () => {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const content = reader.result;
+            // 根据文件后缀名区分处理逻辑
+            if (file.name.endsWith(".json")) {
+                let json = JSON.parse(content);
+                let comments;
+                if (json.length === 1) {
+                    comments = json[0].comments;
+                } else {
+                    comments = json;
+                }
+                const dm = bilibiliDanmuParseFromJson(comments);
+                console.log("Parsed JSON danmaku:", dm);
+                art.plugins.artplayerPluginDanmuku.config({
+                    danmuku: dm,
+                });
+                art.plugins.artplayerPluginDanmuku.load();
+            } else if (file.name.endsWith(".xml")) {
+                const dm = bilibiliDanmuParseFromXml(content);
+                console.log("Parsed XML danmaku:", dm);
+                art.plugins.artplayerPluginDanmuku.config({
+                    danmuku: dm,
+                });
+                art.plugins.artplayerPluginDanmuku.load();
+            } else {
+                console.error("Unsupported file format. Please upload a .json or .xml file.");
+            }
+        };
+        reader.readAsText(file);
+    });
+    input.click();
+}
+
+async function down_danmu(art) {
+    let $episode_list = document.querySelector("#episode_list")
+    const episodeId = $episode_list.value
+    // let {anime_id, episode, title, url} = info
+    // // let danmu = await db_danmu.get(anime_id, episodeId)
+    let danmu = art.storage.get(episodeId)
+
+    let info = art.storage.get('info')
+    const {title, episode} = info
+    const blob = new Blob([JSON.stringify(danmu)], {type: "text/plain;charset=utf-8"});
+    saveAs(blob, `${title} - ${episode}.json`);
 }
 
 function add_danmu(art) {
@@ -114,15 +170,15 @@ let UNSEARCHED = ['未搜索到番剧弹幕', '请按右键菜单', '手动搜�
 function init_player(art) {
     add_danmu(art)
 
-    let $count = document.querySelector("#count")
+    let $danmu_count = document.querySelector("#danmu_count")
 
-    let $anime_list = document.querySelector("#animes")
-    let $episode_list = document.querySelector("#episodes")
+    let $anime_list = document.querySelector("#anime_list")
+    let $episode_list = document.querySelector("#episode_list")
 
 
     let SEARCHED = () => {
         try {
-            return [`番剧：${$anime_list.options[$anime_list.selectedIndex].text}`, `章节: ${$episode_list.options[$episode_list.selectedIndex].text}`, `已加载 ${$count.textContent} 条弹幕`,]
+            return [`番剧：${$anime_list.options[$anime_list.selectedIndex].text}`, `章节: ${$episode_list.options[$episode_list.selectedIndex].text}`, `已加载 ${$danmu_count.textContent} 条弹幕`,]
         } catch (e) {
             console.log(e)
             return []
@@ -131,20 +187,26 @@ function init_player(art) {
 
     async function update_episode_select(art) {
         // 章节
-        let info = art.storage.get('info')
-        const {anime_id, episode} = info
-        console.log('update_episode_select: ', info)
-        let $episodes = document.querySelector("#episodes")
+        let {
+            anime_id,
+            title,
+
+            url,
+            episode,
+        } = art.storage.get('info')
+
+        let $episodes = document.querySelector("#episode_list")
 
         const episode_idx = $episodes.selectedIndex
-        console.log(episode_idx)
-        // const db_anime_info = await db_info.get(anime_id)
-        let db_anime_info = art.storage.get('db_info')
+        console.log('update_episode_select: ', episode_idx)
+        let db_anime_info = await db_info.get(anime_id)
+        // let db_anime_info = art.storage.get('db_info')
         const {episode_dif} = db_anime_info
         // 存储选择的剧集序号
         let dif = episode_idx + 1 - episode
         if (dif !== episode_dif) {
             db_anime_info['episode_dif'] = dif
+            await db_info.put(anime_id, db_anime_info)
             // 更新选择的剧集
             // const event = new Event('db_info_put');
             // event.key = anime_id;
@@ -183,20 +245,25 @@ function init_player(art) {
 
 // 更新 episode select
 // 初始剧集选项与默认选择
-    async function update_episodes_list(art, anime) {
-        console.log('update_episodes_list: ', anime)
+    async function update_episode_list(art, anime) {
+        console.log('update_episode_list: ', anime)
 
-        let info = art.storage.get('info')
-        const {anime_id, episode} = info
+        let {
+            anime_id,
+            title,
+
+            url,
+            episode,
+        } = art.storage.get('info')
         // 章节
-        let $episodes = document.querySelector("#episodes")
+        let $episodes = document.querySelector("#episode_list")
 
         const {animeId, episodes} = anime
         const html = episodes.reduce((html, episode) => html + `<option value="${episode.episodeId}">${episode.episodeTitle}</option>`, '')
         $episodes.innerHTML = html
 
-        // const db_anime_info = await db_info.get(anime_id)
-        let db_anime_info = art.storage.get('db_info')
+        let db_anime_info = await db_info.get(anime_id)
+        // let db_anime_info = art.storage.get('db_info')
         const {episode_dif} = db_anime_info
 
         let episodeId = get_episodeId(animeId, episode_dif + episode)
@@ -214,8 +281,8 @@ function init_player(art) {
     // 监听加载到的弹幕数组
     art.on('artplayerPluginDanmuku:loaded', (danmus) => {
         console.info('加载弹幕', danmus.length);
-        $count.textContent = danmus.length
-        if ($count.textContent === '') {
+        $danmu_count.textContent = danmus.length
+        if ($danmu_count.textContent === '') {
             art_msgs(art, UNSEARCHED)
         } else {
             art_msgs(art, SEARCHED())
@@ -223,7 +290,7 @@ function init_player(art) {
     });
 
     art.on('pause', () => {
-        if ($count.textContent === '') {
+        if ($danmu_count.textContent === '') {
             art_msgs(art, UNSEARCHED)
         } else {
             art_msgs(art, SEARCHED())
@@ -233,21 +300,28 @@ function init_player(art) {
 
 
     $anime_list.addEventListener('change', async () => {
-        let db_anime_info = art.storage.get('db_info')
-        let info = art.storage.get('info')
-        const {anime_id, episode} = info
+        // let db_anime_info = art.storage.get('db_info')
+        let {
+            anime_id,
+            title,
+
+            url,
+            episode,
+        } = art.storage.get('info')
+        let db_anime_info = await db_info.get(anime_id)
         // 获取选中的值
         const new_idx = $anime_list.selectedIndex
-        const {idx, animes} = db_anime_info
+        const {anime_idx, animes} = db_anime_info
         // 存储选择的番剧序号
-        if (new_idx !== idx) {
-            db_anime_info['idx'] = new_idx
+        if (new_idx !== anime_idx) {
+            db_anime_info['anime_idx'] = new_idx
             // 更新选择的剧集
-            art.storage.set('db_info', db_anime_info)
-            set_anime_name(art)
+            // art.storage.set('db_info', db_anime_info)
+            await db_info.put(anime_id, db_anime_info)
+            await set_anime_name(art)
 
             // 番剧选项变化
-            await update_episodes_list(art, animes[new_idx])
+            await update_episode_list(art, animes[new_idx])
 
             // $animeName.value = anime_info['animes'][anime_info['idx']]['animeTitle']
         }
@@ -258,23 +332,32 @@ function init_player(art) {
         await update_episode_select(art)
     });
 
-    document.addEventListener('db_info_put', async function (e) {
-        // let {animes: old_animes} = await db_info.get(anime_id)
-        let db_info = art.storage.get('db_info')
-        let {animes: old_animes} = db_info
-        let {animes: new_animes, idx: new_idx} = e.value
-        if (new_animes !== old_animes) {
-            // 初始番剧选项与默认选择
-            db_info.animes = new_animes
-            db_info.idx = new_idx
-            art.storage.set('db_info', db_info)
-            update_animes_list(art, new_animes, new_idx)
-        }
-    });
+    // document.addEventListener('db_info_put', async function (e) {
+    //     let {
+    //         anime_id,
+    //         title,
+    //
+    //         url,
+    //         episode,
+    //     } = art.storage.get('info')
+    //     let db_anime_info = await db_info.get(anime_id)
+    //     let {animes: old_animes} = db_anime_info
+    //     // let db_info = art.storage.get('db_info')
+    //     // let {animes: old_animes} = db_info
+    //     let {animes: new_animes, idx: new_idx} = e.value
+    //     if (new_animes !== old_animes) {
+    //         // 初始番剧选项与默认选择
+    //         db_anime_info.animes = new_animes
+    //         db_anime_info.idx = new_idx
+    //         // art.storage.set('db_info', db_anime_info)
+    //         await db_info.put(anime_id, db_anime_info)
+    //         update_animes_list(art, new_animes, new_idx)
+    //     }
+    // });
 
-    document.addEventListener('update_episodes_list', async function (e) {
+    document.addEventListener('update_episode_list', async function (e) {
         let {art, anime} = e.detail
-        await update_episodes_list(art, anime)
+        await update_episode_list(art, anime)
     });
 
     document.addEventListener('update_episode_select', async function (e) {
@@ -282,32 +365,41 @@ function init_player(art) {
         await update_episode_select(art)
     });
 
-    let $animeName = document.querySelector("#animeName")
+    let $animeName = document.querySelector("#anime_name")
 // 监听input元素的keypress事件
     $animeName.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter') {
-            await get_animes_new($animeName.value, art)
+            await update_anime_list_req($animeName.value, art)
         }
     });
 // 监听input元素的blur事件
     $animeName.addEventListener('blur', async () => {
-        await get_animes_new($animeName.value, art)
+        await update_anime_list_req($animeName.value, art)
     });
 
     return {
         $animeName,
-        $count,
+        $count: $danmu_count,
         $animes: $anime_list,
         $episodes: $episode_list,
     }
 }
 
-function set_anime_name(art) {
-    let db_anime_info = art.storage.get('db_info')
-    let {title} = art.storage.get('info')
-    let {animes, idx} = db_anime_info
-    let animeTitle = animes[idx].animeTitle
-    let $animeName = document.querySelector("#animeName")
+async function set_anime_name(art) {
+
+    let {
+        anime_id,
+        title,
+
+        url,
+        episode,
+    } = art.storage.get('info')
+
+    let db_anime_info = await db_info.get(anime_id)
+    console.log(db_anime_info)
+    let {animes, anime_idx} = db_anime_info
+    let animeTitle = animes[anime_idx].animeTitle
+    let $animeName = document.querySelector("#anime_name")
     // 初始搜索番剧默认名称
     console.log('set_anime_name: ', animeTitle, title)
     if (animeTitle) {
@@ -319,18 +411,28 @@ function set_anime_name(art) {
 
 
 // 请求接口，搜索番剧
-async function get_animes_new(title, art) {
-    let db_anime_info = art.storage.get('db_info')
+async function update_anime_list_req(animeTitle, art) {
+    let {
+        anime_id,
+        title,
+
+        url,
+        episode,
+    } = art.storage.get('info')
+
+    let db_anime_info = await db_info.get(anime_id)
+    // let db_anime_info = art.storage.get('db_info')
     try {
-        const animes = await get_search_episodes(title)
+        const animes = await get_search_episodes(animeTitle)
         if (animes.length === 0) {
             art_msgs(art, UNSEARCHED)
         } else {
             db_anime_info['animes'] = animes
-            art.storage.set('db_info', db_anime_info)
-            set_anime_name(art)
+            await db_info.put(anime_id, db_anime_info)
+            // art.storage.set('db_info', db_anime_info)
+            await set_anime_name(art)
 
-            update_animes_list(art, animes, db_anime_info.idx)
+            update_anime_list_dom(art, animes, db_anime_info.anime_idx)
         }
         return animes
     } catch (error) {
@@ -339,40 +441,51 @@ async function get_animes_new(title, art) {
 }
 
 // 初始番剧选项与默认选择
-function update_animes_list(art, animes, idx) {
-    console.log('update_animes_list: ', animes, idx)
+function update_anime_list_dom(art, animes, anime_idx) {
+    console.log('update_anime_list: ', animes, anime_idx)
     // 番剧名称列表
-    let $anime_list = document.querySelector("#animes")
+    let $anime_list = document.querySelector("#anime_list")
 
     const html = animes.reduce((html, anime) => html + `<option value="${anime.animeId}">${anime.animeTitle}</option>`, '')
     $anime_list.innerHTML = html
 
-    $anime_list.value = animes[idx]['animeId']
+    let anime = animes[anime_idx]
+    $anime_list.value = anime['animeId']
 
     // const event = new Event('update_episodes')
     // event.value = animes[idx]
     // console.log(animes[idx])
 
-    const event = new CustomEvent('update_episodes_list', {
+    const event = new CustomEvent('update_episode_list', {
         detail: {
             art,
-            anime: animes[idx],
+            anime,
         },
     });
     document.dispatchEvent(event);
 }
 
-async function get_animes(art) {
-    let db_anime_info = art.storage.get('db_info')
+async function get_anime_list(art) {
+    let {
+        anime_id,
+        title,
 
-    let {animes, idx} = db_anime_info
-    const {animeTitle} = animes[idx]
-    if (!animes[idx].hasOwnProperty('animeId')) {
+        url,
+        episode,
+    } = art.storage.get('info')
+
+    let db_anime_info = await db_info.get(anime_id)
+    // let db_anime_info = art.storage.get('db_info')
+
+    let {animes, anime_idx} = db_anime_info
+    let anime = animes[anime_idx]
+    const {animeTitle} = anime
+    if (!anime.hasOwnProperty('animeId')) {
         console.log('没有缓存，请求接口')
-        await get_animes_new(animeTitle, art)
+        await update_anime_list_req(animeTitle, art)
     } else {
         console.log('有缓存，请求弹幕')
-        update_animes_list(art, animes, idx)
+        update_anime_list_dom(art, animes, anime_idx)
     }
 }
 
@@ -382,6 +495,8 @@ export {
     add_danmu,
     init_player,
     html_danmu,
-    get_animes,
-    set_anime_name
+    get_anime_list,
+    set_anime_name,
+    upload_danmu,
+    down_danmu,
 }
