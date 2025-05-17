@@ -52,7 +52,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, onBeforeMount, reactive, ref, watch } from "vue";
+import {computed, inject, onBeforeMount, onMounted, reactive, ref, watch} from "vue";
 import { useRouter } from "vue-router";
 import { ApiGet } from "../../utils/request";
 import { ElMessage } from "element-plus";
@@ -66,11 +66,11 @@ import Hls from 'hls.js';
 
 // 弹幕相关依赖
 import { save_anime_info_db } from '@/danmu/db/db_danmu'
-import { NewPlayer } from '@/danmu/player/player'
-import { init } from '@/danmu/player/danmu'
+import { new_danmu_player } from '@/danmu/player/player'
+import {init_player, get_animes, set_anime_name} from '@/danmu/player/danmu'
 
 const artContainer = ref(null);
-let artInstance: any = null;
+let art: any = null;
 
 const data = reactive({
   loading: false,
@@ -164,7 +164,7 @@ const playNext = () => {
   playChange({sourceId: data.currentTabId, episodeIndex: data.current.index + 1, target: ''})
   if (data.autoplay) {
     setTimeout(() => {
-      if (artInstance) artInstance.play();
+      if (art) art.play();
     }, 1000)
   }
 }
@@ -184,11 +184,15 @@ function playM3u8(video: HTMLVideoElement, url: string, art: any) {
   }
 }
 
+onMounted(()=>{
+  initArtPlayer();
+})
+
 async function initArtPlayer() {
-  if (artInstance) {
-    artInstance.destroy();
-    artInstance = null;
-  }
+  // if (artInstance) {
+  //   artInstance.destroy();
+  //   artInstance = null;
+  // }
 
   // artInstance = new Artplayer({
   //   container: artContainer.value,
@@ -207,25 +211,75 @@ async function initArtPlayer() {
   const url = data.current.link
   const episode = data.current.index + 1
   // 获取播放信息
-  let { src_url, db_anime_info, db_anime_url } = await save_anime_info_db(anime_id, title, url)
+
   // 重新渲染播放器
-  artInstance = NewPlayer(src_url, artContainer.value, data, {
+  art = new_danmu_player(url, artContainer.value, data)
+
+  // let { src_url, db_anime_info, db_anime_url } = await save_anime_info_db(anime_id, title, url)
+  if (!art.storage.get('db_info')) {
+    let db_anime_info = {
+      animes: [{ animeTitle: title }],
+      idx: 0,
+      episode_dif: 0,
+    }
+    art.storage.set('db_info', db_anime_info)
+  }
+  init_player(art)
+
+  // get_animes(artInstance, db_anime_info)
+
+  art.on('ready', () => {
+    // 可扩展 ready 事件逻辑
+  });
+  art.on('ended', isAutoPlay);
+}
+
+async function updateArtPlayer() {
+  const anime_id = data.detail.id
+  const title = data.detail.name
+  const url = data.current.link
+  const episode = data.current.index + 1
+
+  // 获取播放信息
+  let info = {
     anime_id,
     title,
     url,
     episode,
-  })
-  init(artInstance, db_anime_info, db_anime_url, anime_id, episode)
+  }
+  art.storage.set('info', info)
+  console.log('info: ', info)
+  let db_info = art.storage.get('db_info')
+  console.log('db_info: ', db_info)
+  if (db_info) {
 
-  artInstance.on('ready', () => {
-    // 可扩展 ready 事件逻辑
-  });
-  artInstance.on('ended', isAutoPlay);
+  } else {
+    let db_anime_info = {
+      animes: [{ animeTitle: title }],
+      idx: 0,
+      episode_dif: 0,
+    }
+    art.storage.set('db_info', db_anime_info)
+  }
+  // let { src_url, db_anime_info, db_anime_url } = await save_anime_info_db(anime_id, title, url)
+
+  await art.switchUrl(url)
+  set_anime_name(art)
+  await get_animes(art)
+
 }
 
-watch(() => data.options.src, (newVal) => {
+// watch(() => data.options.src, (newVal) => {
+//   if (newVal) {
+//     // initArtPlayer();
+//     updateArtPlayer();
+//   }
+// });
+
+watch(() => data.current.link, (newVal) => {
   if (newVal) {
-    initArtPlayer();
+    // initArtPlayer();
+    updateArtPlayer();
   }
 });
 

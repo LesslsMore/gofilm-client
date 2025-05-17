@@ -1,8 +1,6 @@
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import saveAs from 'file-saver'
-import { db_danmu } from '@/danmu/db/db';
-// import {get_anime_info} from '@/parser/get_anime_info'
 import {html_danmu} from "@/danmu/player/danmu.js";
 import posterImg from '@/assets/image/play.png'
 
@@ -22,10 +20,10 @@ function playM3u8(video, url, art) {
 }
 
 // 加载 url danmu 播放器
-function NewPlayer(src_url, container, data, info) {
+function new_danmu_player(url, container, data) {
     var art = new Artplayer({
         container,
-        url: src_url,
+        url,
         type: 'm3u8',
         customType: {
             m3u8: playM3u8,
@@ -99,8 +97,12 @@ function NewPlayer(src_url, container, data, info) {
                 click: async function () {
                     let $episodes = document.querySelector("#episodes")
                     const episodeId = $episodes.value
-                    let {anime_id, episode, title, url} = info
-                    let danmu = await db_danmu.get(anime_id, episodeId)
+                    // let {anime_id, episode, title, url} = info
+                    // // let danmu = await db_danmu.get(anime_id, episodeId)
+                    let info = art.storage.get('info')
+                    const {title, episode} = info
+                    let danmu = art.storage.get(episodeId)
+
                     const blob = new Blob([JSON.stringify(danmu)], {type: "text/plain;charset=utf-8"});
                     saveAs(blob, `${title} - ${episode}.json`);
                 },
@@ -182,4 +184,4 @@ function bilibiliDanmuParseFromJson(jsonString) {
     })
 }
 
-export { NewPlayer, bilibiliDanmuParseFromJson};
+export { new_danmu_player, bilibiliDanmuParseFromJson};

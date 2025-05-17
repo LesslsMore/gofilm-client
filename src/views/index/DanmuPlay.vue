@@ -63,8 +63,8 @@ import { cookieUtil, COOKIE_KEY_MAP } from '../../utils/cookie'
 import { fmt } from "../../utils/format";
 // 弹幕相关依赖
 import { save_anime_info_db } from '@/danmu/db/db_danmu'
-import { NewPlayer } from '@/danmu/player/player'
-import { init } from '@/danmu/player/danmu'
+import { new_danmu_player } from '@/danmu/player/player'
+import { init_player } from '@/danmu/player/danmu'
 
 const data = reactive({
   loading: false,
@@ -170,15 +170,9 @@ async function reRenderPlayer() {
   const url = data.current.link
   const episode = data.current.index + 1
   // 获取播放信息
-  let { src_url, db_anime_info, db_anime_url } = await save_anime_info_db(anime_id, title, url)
   // 重新渲染播放器
-  let art = NewPlayer(src_url, '.artplayer-app', data, {
-    anime_id,
-    title,
-    url,
-    episode,
-  })
-  init(art, db_anime_info, db_anime_url, anime_id, episode)
+  let art = new_danmu_player(url, '.artplayer-app', data)
+  init_player(art)
 }
 
 watch(() => data.options.src, (newVal) => {
