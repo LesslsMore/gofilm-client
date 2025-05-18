@@ -1,5 +1,6 @@
 import artplayerPluginDanmuku from 'artplayer-plugin-danmuku';
 import {SEARCHED, UNSEARCHED} from "@/danmu/player/search.js";
+import {db_danmu} from "@/danmu/db/db.js";
 
 const html_danmu = `<div id="k-player-danmaku-search-form">
                 <label>
@@ -83,10 +84,10 @@ function upload_danmu(art) {
 
 async function down_danmu(art) {
     let $episode_list = document.querySelector("#episode_list")
-    const episodeId = $episode_list.value
+    const episode_id = $episode_list.value
     // let {anime_id, episode, title, url} = info
-    // // let danmu = await db_danmu.get(anime_id, episodeId)
-    let danmu = art.storage.get(episodeId)
+    let danmu = await db_danmu.get(episode_id)
+    // let danmu = art.storage.get(episodeId)
 
     let info = art.storage.get('info')
     const {title, episode} = info

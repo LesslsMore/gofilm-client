@@ -1,4 +1,4 @@
-import {db_info} from "@/danmu/db/db.js";
+import {db_danmu, db_info} from "@/danmu/db/db.js";
 import {get_comment, get_episodeId, get_search_episodes} from "@/danmu/api/api.js";
 import {art_msgs, init_danmu, update_danmu} from "@/danmu/player/danmu.js";
 
@@ -60,16 +60,18 @@ function init_episode_list(art) {
         }
 
         // 获取选中的值
-        const episodeId = $episodes.value;
+        const episode_id = $episodes.value;
         // 在控制台打印选中的值
         let danmu
         try {
             // 优先使用接口数据
-            danmu = await get_comment(episodeId)
-            art.storage.set(episodeId, danmu)
+            danmu = await get_comment(episode_id)
+            await db_danmu.put(episode_id, danmu)
+            // art.storage.set(episodeId, danmu)
         } catch (error) {
             console.log('接口请求失败，尝试使用缓存数据: ', error)
-            danmu = art.storage.get(episodeId)
+            danmu = await db_danmu.get(episode_id)
+            // danmu = art.storage.get(episodeId)
             if (!danmu) {
                 throw new Error('无法获取弹幕数据')
             }

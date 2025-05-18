@@ -10,7 +10,7 @@ let Search_SearchAnimeAsync = `/api/v2/search/anime?keyword=`
 let Related_GetRealtedAsync = `/api/v2/related/`
 let Comment_GetExtCommentAsync = `/api/v2/extcomment?url=`
 
-export async function get_danmus(title, id) {
+async function get_danmus(title, id) {
 
     // let animeId = await get_animeId(title)
 
@@ -30,7 +30,7 @@ export async function get_danmus(title, id) {
     return danmu
 }
 
-export function get_episodeId(animeId, id) {
+function get_episodeId(animeId, id) {
     id = id.toString().padStart(4, "0");
     let episodeId = `${animeId}${id}`
     return episodeId
@@ -49,18 +49,26 @@ async function get_animeId(title) {
 }
 
 // 获取 anime, episode
-export async function get_search_episodes(anime, episode) {
+async function get_search_episodes(anime, episode) {
     const res = await request({
         url: `${end_point}${API_search_episodes}`,
         method: 'get',
         params: { anime, episode },
     })
-    // console.log(res)
+    // const res = await request({
+    //     url: `${end_point}${API_search_episodes}?anime=${anime}`,
+    //     method: 'get',
+    //     // params: {
+    //     //     anime,
+    //     //     episode,
+    //     // },
+    // })
+    console.log(res)
     return res.animes
 }
 
 // 获取原始 danmu
-export async function get_comment(episodeId) {
+async function get_comment(episodeId) {
     const res = await request({
         url: `${end_point}${API_comment}${episodeId}?withRelated=true&chConvert=1`,
         method: 'get',
@@ -107,4 +115,10 @@ async function get_danmu_ext(related_url) {
     // console.log('获取扩展 danmu 数目：')
     // console.log(data.count)
     return data.comments
+}
+
+export {
+    get_search_episodes,
+    get_comment,
+    get_episodeId,
 }

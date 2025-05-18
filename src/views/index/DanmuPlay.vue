@@ -1,7 +1,7 @@
 <template>
   <div class="player_area" v-show="data.loading">
     <div class="player_p">
-      <div class="video-player artplayer-app"></div>
+      <div class="video-player" ref="artContainer"></div>
     </div>
     <div class="current_play_info">
       <div class="play_info_left">
@@ -52,7 +52,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, onBeforeMount, reactive, ref, watch } from "vue";
+import {computed, inject, onBeforeMount, onMounted, reactive, ref, watch} from "vue";
 import { useRouter } from "vue-router";
 import { ApiGet } from "../../utils/request";
 import { ElMessage } from "element-plus";
@@ -61,9 +61,16 @@ import { Promotion } from "@element-plus/icons-vue";
 import posterImg from '../../assets/image/play.png'
 import { cookieUtil, COOKIE_KEY_MAP } from '../../utils/cookie'
 import { fmt } from "../../utils/format";
+import Artplayer from 'artplayer';
+import Hls from 'hls.js';
+
 // 弹幕相关依赖
 import { init_player } from '@/danmu/player/player'
-import { init_danmu_player } from '@/danmu/player/danmu'
+import {init_danmu_player, get_anime_list, set_anime_name} from '@/danmu/player/search'
+import {db_info} from "@/danmu/db/db";
+
+const artContainer = ref(null);
+let art: any = null;
 
 const data = reactive({
   loading: false,
@@ -110,7 +117,7 @@ const data = reactive({
     title: "",
     src: "",
     volume: 0.6,
-    currentTime: 0,
+    currentTime: 50,
   },
 })
 
@@ -157,31 +164,108 @@ const playNext = () => {
   playChange({sourceId: data.currentTabId, episodeIndex: data.current.index + 1, target: ''})
   if (data.autoplay) {
     setTimeout(() => {
-      reRenderPlayer()
+      if (art) art.play();
     }, 1000)
   }
 }
 
-// 弹幕播放器初始化
-async function reRenderPlayer() {
+onMounted(()=>{
+  initArtPlayer();
+})
+
+async function initArtPlayer() {
+
   const anime_id = data.detail.id
   const title = data.detail.name
   const url = data.current.link
   const episode = data.current.index + 1
   // 获取播放信息
+
   // 重新渲染播放器
-  let art = init_player(url, '.artplayer-app', data)
+  console.log(posterImg)
+  art = init_player('url.m3u8', artContainer.value, posterImg, data)
+
   init_danmu_player(art)
+
+  art.on('ready', () => {
+    // 可扩展 ready 事件逻辑
+  });
+  art.on('ended', isAutoPlay);
 }
 
-watch(() => data.options.src, (newVal) => {
-  if (newVal) {
-    reRenderPlayer()
+async function updateArtPlayer() {
+  const anime_id = data.detail.id
+  const title = data.detail.name
+  const url = data.current.link
+  const episode = data.current.index + 1
+
+  // 获取播放信息
+  let info = {
+    anime_id,
+    title,
+
+    url,
+    episode,
   }
-})
+  art.storage.set('info', info)
+  console.log('info: ', info)
+  let db_anime_info = await db_info.get(anime_id)
+  if (db_anime_info) {
+
+  } else {
+    db_anime_info = {
+      animes: [{ animeTitle: title }],
+      anime_idx: 0,
+      episode_dif: 0,
+    }
+    await db_info.put(anime_id, db_anime_info)
+  }
+  console.log('db_anime_info: ', db_anime_info)
+  // let { src_url, db_anime_info, db_anime_url } = await save_anime_info_db(anime_id, title, url)
+
+  await art.switchUrl(url)
+  await set_anime_name(art)
+  await get_anime_list(art)
+}
+
+// watch(() => data.options.src, (newVal) => {
+//   if (newVal) {
+//     // initArtPlayer();
+//     updateArtPlayer();
+//   }
+// });
+
+watch(() => data.current.link, (newVal) => {
+  if (newVal) {
+    // initArtPlayer();
+    updateArtPlayer();
+  }
+});
 
 const saveFilmHisroy = () => {
-  // 可选：保存历史播放记录逻辑，可参考 ArtPlay.vue
+  // if (data.options.src.length > 0) {
+  //   let player = artInstance && artInstance.video;
+  //   let history = cookieUtil.getCookie(COOKIE_KEY_MAP.FILM_HISTORY) ? JSON.parse(cookieUtil.getCookie(COOKIE_KEY_MAP.FILM_HISTORY)) : {}
+  //   let link = `/play?id=${data.detail.id}&source=${data.currentTabId}&episode=${data.current.index}&currentTime=${player.currentTime}`
+  //   let timeStamp = new Date().getTime()
+  //   let time = fmt.dateFormat(timeStamp)
+  //   let progress = `${fmt.secondToTime(player.currentTime)} / ${fmt.secondToTime(player.duration)}`
+  //   history[data.detail.id] = {
+  //     id: data.detail.id,
+  //     name: data.detail.name,
+  //     picture: data.detail.picture,
+  //     episode: data.current.episode,
+  //     time: time,
+  //     timeStamp: timeStamp,
+  //     source: data.currentTabId,
+  //     link: link,
+  //     currentTime: player.currentTime,
+  //     duration: player.duration,
+  //     progress: progress,
+  //     devices: global.isMobile
+  //   }
+  //   cookieUtil.setCookie(COOKIE_KEY_MAP.FILM_HISTORY, JSON.stringify(history))
+  // }
 }
 
 window.addEventListener('beforeunload', saveFilmHisroy)

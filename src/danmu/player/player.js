@@ -1,7 +1,6 @@
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import {down_danmu, html_danmu, upload_danmu} from "@/danmu/player/danmu.js";
-import posterImg from '@/assets/image/play.png'
 
 function playM3u8(video, url, art) {
     if (Hls.isSupported()) {
@@ -19,20 +18,11 @@ function playM3u8(video, url, art) {
 }
 
 // 加载 url danmu 播放器
-function init_player(url, container, data) {
-    let art = new Artplayer({
+function init_player(url, container, poster, data) {
+    let opt = {
         container,
         url,
-
-        type: 'm3u8',
-        customType: {
-            m3u8: playM3u8,
-        },
-
-        volume: data.options.volume,
-        // autoplay: data.autoplay,
-        poster: posterImg,
-
+        poster,
         // autoplay: true,
         // muted: true,
         autoSize: true,
@@ -61,10 +51,26 @@ function init_player(url, container, data) {
                 html: html_danmu,
             },
         ],
-    });
+    }
+
+    if (opt.url.endsWith('.m3u8')) {
+        Object.assign(opt, {
+            type: 'm3u8',
+            customType: {
+                m3u8: playM3u8,
+            },
+        })
+    }
+    if (data) {
+        Object.assign(opt, {
+            volume: data.options.volume,
+            // autoplay: data.autoplay
+        })
+    }
+    let art = new Artplayer(opt);
     return art
 }
 
 
 
-export { init_player};
+export { init_player };

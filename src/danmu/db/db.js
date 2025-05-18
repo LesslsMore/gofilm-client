@@ -5,6 +5,7 @@ const db_name = 'anime'
 const db_schema = {
     info: '&anime_id', // 主键 索引
     url: '&anime_id', // 主键 索引
+    danmu: '&episode_id' // 组合键 索引
 }
 
 const db_obj = {
@@ -13,6 +14,7 @@ const db_obj = {
 
 const db_url = db_obj[db_name].url
 const db_info = db_obj[db_name].info
+const db_danmu = db_obj[db_name].danmu
 
 function get_db(db_name, db_schema, db_ver = 1) {
     let db = new Dexie(db_name)
@@ -21,91 +23,60 @@ function get_db(db_name, db_schema, db_ver = 1) {
     return db
 }
 
-// 原始的 Dexie put 和 get 方法
-const db_url_put = db_url.put.bind(db_url);
-const db_url_get = db_url.get.bind(db_url);
+function createDbMethods(dbInstance, pk, expiryInMinutes = 60) {
+    // 原始的 Dexie put 和 get 方法
+    const old_put = dbInstance.put.bind(dbInstance);
+    const old_get = dbInstance.get.bind(dbInstance);
 
-// 封装 put 方法
-db_url.put = async function(key, value, expiryInMinutes = 60) {
-    const now = new Date();
-    const item = {
-        anime_id: key,
-        value: value,
-        expiry: now.getTime() + expiryInMinutes * 60000
+    const put = async function(key, value) {
+        const now = new Date();
+        const item = {
+            [pk]: key,
+            value: value,
+            expiry: now.getTime() + expiryInMinutes * 60000
+        };
+
+        const result = await old_put(item);
+
+        const event = new Event(old_put.name);
+        event.key = key;
+        event.value = value;
+        document.dispatchEvent(event);
+
+        return result;
+    };
+    const get = async function(key) {
+        const item = await old_get(key);
+        // console.log(item)
+        const event = new Event(old_get.name);
+        event.key = key;
+        event.value = item ? item.value : null;
+        document.dispatchEvent(event);
+
+        if (!item) {
+            return null;
+        }
+        const now = new Date();
+        if (now.getTime() > item.expiry) {
+            await db_url.delete(key);
+            return null;
+        }
+        return item.value;
     };
 
-    const result = await db_url_put(item);
-
-    const event = new Event('db_yhdm_put');
-    event.key = key;
-    event.value = value;
-    document.dispatchEvent(event);
-
-    return result;
-};
-
-// 封装 get 方法
-db_url.get = async function(key) {
-    const item = await db_url_get(key);
-    // console.log(item)
-    const event = new Event('db_yhdm_get');
-    event.key = key;
-    event.value = item ? item.value : null;
-    document.dispatchEvent(event);
-
-    if (!item) {
-        return null;
+    dbInstance.put = put;
+    dbInstance.get = get;
+    return {
+        put,
+        get,
     }
-    const now = new Date();
-    if (now.getTime() > item.expiry) {
-        await db_url.delete(key);
-        return null;
-    }
-    return item.value;
-};
+}
 
-// 原始的 Dexie put 和 get 方法
-const db_info_put = db_info.put.bind(db_info);
-const db_info_get = db_info.get.bind(db_info);
-
-// 封装 put 方法
-db_info.put = async function(key, value, expiryInMinutes = 60 * 24 * 7) {
-    const now = new Date();
-    const item = {
-        anime_id: key,
-        value: value,
-        expiry: now.getTime() + expiryInMinutes * 60000
-    };
-
-    const result = await db_info_put(item);
-
-    const event = new Event('db_info_put');
-    event.key = key;
-    event.value = value;
-    document.dispatchEvent(event);
-
-    return result;
-};
-
-// 封装 get 方法
-db_info.get = async function(key) {
-    const item = await db_info_get(key);
-    // console.log(item)
-    const event = new Event('db_info_get');
-    event.key = key;
-    event.value = item ? item.value : null;
-    document.dispatchEvent(event);
-
-    if (!item) {
-        return null;
-    }
-    const now = new Date();
-    if (now.getTime() > item.expiry) {
-        await db_info.delete(key);
-        return null;
-    }
-    return item.value;
-};
+createDbMethods(db_url, 'anime_id',60)
+createDbMethods(db_info, 'anime_id',60 * 24 * 7)
+createDbMethods(db_danmu, 'episode_id',60 * 24 * 7)
+// db_url.put = put
+// db_url.get = get
 
 // 示例
 // (async () => {
@@ -121,6 +92,8 @@ db_info.get = async function(key) {
 //     const value = await db.myStore.get('myData'); // 过期前获取数据
 //     console.log(value);
 // })();
-
-
-export {db_url, db_info}
+export {
+    db_url,
+    db_info,
+    db_danmu,
+}

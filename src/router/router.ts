@@ -8,9 +8,8 @@ import IndexHome from "../views/IndexHome.vue";
 import Home from "../views/index/Home.vue";
 import FilmDetails from "../views/index/FilmDetails.vue";
 import Play from "../views/index/Play.vue";
-import DPlay from "@/views/index/DPlay.vue";
-import ArtPlay from "@/views/index/ArtPlay.vue";
 import DanmuPlay from "@/views/index/DanmuPlay.vue";
+import ArtPlay from "@/views/index/ArtPlay.vue";
 import SearchFilm from "../views/index/SearchFilm.vue";
 import NotFound from '../views/error/Error404.vue'
 import FilmClassifySearch from "../views/index/FilmClassifySearch.vue";
@@ -43,8 +42,7 @@ const routes = [
             {path: 'index', component: Home},
             {path: 'filmDetail', component: FilmDetails},
             // {path: 'play', component: ArtPlay},
-            {path: 'play', component: DPlay},
-            // {path: 'play', component: DanmuPlay},
+            {path: 'play', component: DanmuPlay},
             // {path: 'play', component: Play},
             {path: 'search', component: SearchFilm},
             {path: 'filmClassify', component: FilmClassify},
