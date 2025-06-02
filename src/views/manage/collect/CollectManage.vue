@@ -150,6 +150,11 @@
             <el-radio disabled  :label="4">网站</el-radio>
           </el-radio-group>
         </el-form-item>
+        <el-form-item label="视频类型">
+          <el-tooltip class="box-item" effect="dark" content="视频类型，-1 表示全部" placement="top">
+            <el-input-number v-model="form.edit.type_id" :min="-1" :step="1" step-strictly />
+          </el-tooltip>
+        </el-form-item>
         <el-form-item label="站点权重">
           <el-radio-group fill="#9b49e7" @change="restrict(1)" v-model="form.edit.grade">
             <el-radio :label="0">主站点</el-radio>
@@ -258,13 +263,14 @@ interface FilmSource {
   resultModel: number
   grade: number
   collectType: number
+  type_id: number
   syncPictures: boolean
   state: boolean
 }
 
 const form = reactive({
-  add: {name: '', uri: '', resultModel: 0, grade: 1, collectType: 0, syncPictures: false, state: false, interval: 0},
-  edit: {id:'', name: '', uri: '', resultModel: 0, grade: 1, collectType: 0, syncPictures: false, state: false,interval:0},
+  add: {name: '', uri: '', resultModel: 0, grade: 1, collectType: 0, syncPictures: false, state: false, interval: 0, type_id: -1,},
+  edit: {id:'', name: '', uri: '', resultModel: 0, grade: 1, collectType: 0, syncPictures: false, state: false, interval:0, type_id: -1,},
   batch: {ids:[],time: 0},
   options:[]
 
@@ -312,11 +318,11 @@ const restrict = (t:number)=>{
     case 0:
       // 只有 主站点才能开启图片同步, 否则自动为false
       form.add.syncPictures = (form.add.syncPictures)&&(form.add.grade == 0)
-    break
+      break
     case 1:
       // 只有 主站点才能开启图片同步, 否则自动为false
       form.edit.syncPictures = (form.edit.syncPictures)&&(form.edit.grade == 0)
-    break
+      break
   }
 
 }

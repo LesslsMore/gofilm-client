@@ -9,7 +9,7 @@ export default defineConfig({
     // 本地测试环境
     server: {
         host: '0.0.0.0',
-        port: 3606,
+        port: 3600,
         proxy: {
             "/api": {
                 // target: `http://127.0.0.1:3601`,
