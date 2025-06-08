@@ -12,16 +12,13 @@ export default defineConfig({
         port: 3600,
         proxy: {
             "/api": {
+                // rewrite: path => path.replace(/^\/api/, ''),
                 // target: `http://127.0.0.1:3601`,
                 target: `http://127.0.0.1:8000`,
-                // target: `https://fjvtiyskqpsy.eu-central-1.clawcloudrun.com`,
-                // target: `http://gofilm.ns-tpo0hbj4.svc.cluster.local:3601`,
-                // target: `http://113.44.5.201:3601`,
                 // target: 'https://gofilm-api.onrender.com',
                 // target: 'https://gofilm-py.onrender.com/',
                 // target: 'https://anime-danmu-api.vercel.app/',
                 changeOrigin: true, // 允许跨域
-                // rewrite: path => path.replace(/^\/api/, '')
             },
             "/proxy": {
                 target: `http://127.0.0.1:8000`,

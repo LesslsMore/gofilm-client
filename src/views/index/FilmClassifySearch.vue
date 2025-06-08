@@ -1,7 +1,7 @@
 <template>
   <div class="container" v-if="d.title.name">
     <div class="title">
-      <a :href="`/filmClassify?Pid=${d.title.id}`" >{{ d.title.name }}</a>
+      <a :href="`/filmClassify?pid=${d.title.id}`" >{{ d.title.name }}</a>
       <span class="line"/>
       <a :href="`/filmClassifySearch?Pid=${d.title.id}`" class="h_active">{{ `${d.title.name}库` }}</a>
     </div>

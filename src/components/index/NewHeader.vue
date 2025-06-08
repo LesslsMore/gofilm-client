@@ -16,12 +16,12 @@
       <div class="nav_link hidden-md-and-down">
         <a href="/">首页</a>
         <template v-for="n in data.nav">
-          <a :href="`/filmClassify?Pid=${n.id}`">{{ n.name }}</a>
+          <a :href="`/filmClassify?pid=${n.id}`">{{ n.name }}</a>
         </template>
       </div>
       <div class="history-link hidden-md-and-down" v-on:mouseenter="handleHistory(true)"
            v-on:mouseleave="handleHistory(false)">
-        <a :href="`/filmClassify?Pid=${nav.variety.id}`">
+        <a :href="`/filmClassify?pid=${nav.variety.id}`">
           <b style="font-size: 22px;" class="iconfont icon-history"/>
         </a>
         <Transition name="fade-slide" duration="300">
@@ -58,7 +58,7 @@
         <div class="wrap_nav">
           <a href="/">首页</a>
           <template v-for="n in data.nav">
-            <a :href="`/filmClassify?Pid=${n.id}`">{{ n.name }}</a>
+            <a :href="`/filmClassify?pid=${n.id}`">{{ n.name }}</a>
           </template>
         </div>
       </el-drawer>
@@ -207,7 +207,7 @@ onMounted(() => {
     border-radius: 10px;
     margin: 8px 0 8px 0;
     background: linear-gradient(to right, rgba(241,139,179,0.8) 0, rgba(240,163,135,0.8) 100%);
-    
+
 /*    padding-left: 20px;*/
   }
 

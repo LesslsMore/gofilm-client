@@ -16,12 +16,12 @@
       <div class="nav_link">
         <a href="/">首页</a>
         <template v-for="n in data.nav">
-          <a :href="`/filmClassify?Pid=${n.id}`">{{ n.name }}</a>
+          <a :href="`/filmClassify?pid=${n.id}`">{{ n.name }}</a>
         </template>
       </div>
       <div class="history-link hidden-md-and-down" v-on:mouseenter="handleHistory(true)"
            v-on:mouseleave="handleHistory(false)">
-        <a :href="`/filmClassify?Pid=${nav.variety.id}`">
+        <a :href="`/filmClassify?pid=${nav.variety.id}`">
           <b style="font-size: 22px;" class="iconfont icon-history"/>
         </a>
         <Transition name="fade-slide" duration="300">

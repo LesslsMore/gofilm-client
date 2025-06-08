@@ -1,7 +1,7 @@
 <template>
   <div class="container"  v-if="d.content.news.length > 0">
     <div class="title">
-      <a :href="`/filmClassify?Pid=${d.title.id}`" class="h_active">{{ d.title.name }}</a>
+      <a :href="`/filmClassify?pid=${d.title.id}`" class="h_active">{{ d.title.name }}</a>
       <span class="line"/>
       <a :href="`/filmClassifySearch?Pid=${d.title.id}`">{{ `${d.title.name}库` }}</a>
     </div>
@@ -56,7 +56,7 @@ const d = reactive({
 const router = useRouter()
 const getFilmData = () => {
   let query = router.currentRoute.value.query
-  ApiGet(`/filmClassify`, {Pid: query.Pid}).then((resp: any) => {
+  ApiGet(`/filmClassify`, {pid: query.pid}).then((resp: any) => {
     if (resp.code === 0 ) {
       d.title = resp.data.title
       d.content = resp.data.content
