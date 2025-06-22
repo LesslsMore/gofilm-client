@@ -94,7 +94,7 @@
           <el-input v-model="form.edit.remark" placeholder="定时任务描述信息"/>
         </el-form-item>
         <el-form-item label="任务周期">
-          <el-tag  disable-transitions>{{ form.edit.spec }}</el-tag>
+          <el-input v-model="form.edit.spec" placeholder="定时任务Cron表达式 (例: [0 */20 * * * ?] 每20分钟执行一次)"/>
         </el-form-item>
         <el-form-item label="任务类型">
           <el-tag  disable-transitions>{{ form.edit.model == 0?'自动更新':form.edit.model == 1?'自定义更新':'采集重试' }}</el-tag>
@@ -158,7 +158,14 @@ const addTask = ()=>{
 }
 
 const updateTask = ()=>{
-  ApiPost(`/manage/cron/update`, {id: form.edit.id, ids: form.edit.ids, time: form.edit.time, state: form.edit.state, remark: form.edit.remark}).then((resp:any)=>{
+  ApiPost(`/manage/cron/update`, {
+    id: form.edit.id,
+    ids: form.edit.ids,
+    time: form.edit.time,
+    state: form.edit.state,
+    remark: form.edit.remark,
+    spec: form.edit.spec,
+  }).then((resp:any)=>{
     if (resp.code === 0) {
       ElMessage.success({message: resp.msg})
       cancelDialog()
