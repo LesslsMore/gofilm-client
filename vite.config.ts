@@ -64,6 +64,11 @@ export default defineConfig({
                 globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
                 cleanupOutdatedCaches: true,
                 clientsClaim: true,
+                // 排除特定文件
+                globIgnores: [
+                    'assets/managebg-*.png',
+                    'assets/play-*.png'
+                ],
             },
 
             devOptions: {
