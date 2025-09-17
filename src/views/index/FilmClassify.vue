@@ -56,7 +56,7 @@ const d = reactive({
 const router = useRouter()
 const getFilmData = () => {
   let query = router.currentRoute.value.query
-  ApiGet(`/filmClassify`, {pid: query.pid}).then((resp: any) => {
+  ApiGet(`/filmClassify`, {pid: query.Pid || query.pid}).then((resp: any) => {
     if (resp.code === 0 ) {
       d.title = resp.data.title
       d.content = resp.data.content
