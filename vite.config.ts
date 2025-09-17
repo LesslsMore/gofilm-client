@@ -4,6 +4,7 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import {ElementPlusResolver} from "unplugin-vue-components/resolvers";
 import path from 'path';  // 引入 path 模块
+import {VitePWA} from "vite-plugin-pwa";
 
 export default defineConfig({
     // 本地测试环境
@@ -43,6 +44,35 @@ export default defineConfig({
 
     plugins: [
         vue(),
+        VitePWA({
+            registerType: 'prompt',
+            injectRegister: false,
+
+            pwaAssets: {
+                disabled: false,
+                config: true,
+            },
+
+            manifest: {
+                name: '动漫弹幕播放',
+                short_name: '动漫弹幕播放',
+                description: '动漫弹幕播放',
+                theme_color: '#ffffff',
+            },
+
+            workbox: {
+                globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+                cleanupOutdatedCaches: true,
+                clientsClaim: true,
+            },
+
+            devOptions: {
+                enabled: true,
+                navigateFallback: 'index.html',
+                suppressWarnings: true,
+                type: 'module',
+            },
+        }),
         AutoImport({
             resolvers: [ElementPlusResolver()],
         }),
